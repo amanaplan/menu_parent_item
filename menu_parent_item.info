@@ -1,0 +1,5 @@
+name = Menu parent item
+description = Provides support for creating menu items that link to their parents (e.g., "Home" or "Go back" links).
+core = 7.x
+
+dependencies[] = menu

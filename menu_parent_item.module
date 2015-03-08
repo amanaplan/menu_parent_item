@@ -1,0 +1,95 @@
+<?php
+
+/**
+ * @file
+ * Provides support for creating menu items that link to their parents
+ * (e.g., "Home" or "Go back" links).
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function menu_parent_item_menu() {
+  $items = array();
+
+  $items['<parent>'] = array(
+    'page callback' => 'drupal_not_found',
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function menu_parent_item_form_menu_edit_item_alter(&$form, &$form_state) {
+  if (isset($form['link_path']['#default_value'])) {
+    $default_value = $form['link_path']['#default_value'];
+
+    if (preg_match('/^<parent>\/[0-9]+$/', $default_value)) {
+      $default_value = '<parent>';
+    }
+
+    $form['link_path']['#default_value'] = $default_value;
+    $form['link_path']['#description'] .=  ' ' . t('Enter "%parent" to generate a link to the parent item (e.g., "Home" or "Go back" links).', array('%parent' => '<parent>'));
+  }
+}
+
+/**
+ * Implements hook_menu_link_alter().
+ */
+function menu_parent_item_menu_link_alter(&$item, $menu) {
+  if (@$item['module'] == 'menu') {
+    if ($item['link_path'] == '<parent>') {
+      $item['options']['alter'] = TRUE;
+      $item['options']['unaltered_hidden'] = $item['hidden'];
+    }
+    else {
+      unset($item['options']['unaltered_hidden']);
+    }
+  }
+}
+
+/**
+ * Implements hook_translated_menu_link_alter().
+ */
+function menu_parent_item_translated_menu_link_alter(&$item, $map) {
+  if (($item['module'] == 'menu') && ($item['link_path'] == '<parent>')) {
+    $parent_menu_link = menu_link_load($item['plid']);
+    $href = $parent_menu_link['href'];
+    if ($href != NULL) {
+      $item['href'] = $href;
+    }
+    else {
+      $item['hidden'] = TRUE;
+    }
+  }
+}
+
+/**
+ * Implements hook_theme_registry_alter().
+ *
+ * Replaces theme_menu_link with a custom function.
+ */
+function menu_parent_item_theme_registry_alter(&$registry) {
+  // Save the existing menu_link theme function name in the registry
+  // in case it was previously altered by another module or theme.
+  $registry['menu_parent_item_menu_link_default'] = $registry['menu_link'];
+  $registry['menu_link']['function'] = 'menu_parent_item_menu_link';
+}
+
+/**
+ * Overrides theme_menu_link().
+ *
+ * Alters links for "parent" menu items before calling
+ * the original theme function for menu links.
+ */
+function menu_parent_item_menu_link(array $variables) {
+  if ($variables['element']['#original_link']['link_path'] == '<parent>') {
+    $variables['element']['#attributes']['class'][] = 'parent';
+  }
+  // Call the original theme function for normal menu link.
+  return theme('menu_parent_item_menu_link_default', $variables);
+}
