@@ -2,8 +2,7 @@
 
 /**
  * @file
- * Provides support for creating menu items that link to their parents
- * (e.g., "Home" or "Go back" links).
+ * Provides support for creating menu items that link to their parents.
  */
 
 /**
@@ -33,7 +32,7 @@ function menu_parent_item_form_menu_edit_item_alter(&$form, &$form_state) {
     }
 
     $form['link_path']['#default_value'] = $default_value;
-    $form['link_path']['#description'] .=  ' ' . t('Enter "%parent" to generate a link to the parent item (e.g., "Home" or "Go back" links).', array('%parent' => '<parent>'));
+    $form['link_path']['#description'] .= ' ' . t('Enter "%parent" to generate a link to the parent item (e.g., "Home" or "Go back" links).', array('%parent' => '<parent>'));
   }
 }
 

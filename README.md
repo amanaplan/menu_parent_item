@@ -1,6 +1,8 @@
 # Menu parent item
 
-Menu parent item is a Drupal module that provides support for creating menu items that automatically link to their parents (e.g., "Home" or "Go back" menu items).
+Menu parent item is a Drupal module that provides support for creating
+menu items that automatically link to their parents (e.g., "Home"
+or "Go back" menu items).
 
 ## Benefits
   - Add "Home" or "Go Back" menu items to submenus
