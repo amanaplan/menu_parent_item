@@ -1,0 +1,191 @@
+<?php
+
+/**
+ * @file
+ * An example of simpletest tests to accompany the tutorial at
+ * http://drupal.org/node/890654.
+ */
+
+/**
+ * The SimpleTestExampleTestCase is a functional test case, meaning that it
+ * actually exercises a particular sequence of actions through the web UI.
+ * The majority of core test cases are done this way, but the SimpleTest suite
+ * also provides unit tests as demonstrated in the unit test case example later
+ * in this file.
+ *
+ * Functional test cases are far slower to execute than unit test cases because
+ * they require a complete Drupal install to be done for each test.
+ *
+ * @see DrupalWebTestCase
+ * @see SimpleTestUnitTestExampleTestCase
+ *
+ * @ingroup menu_parent_item
+ */
+class MenuParentItemTestCase extends MenuTestCase {
+
+  protected $privilegedUser;
+
+  /**
+   * Give display information to the SimpleTest system.
+   *
+   * getInfo() returns a keyed array of information for SimpleTest to show.
+   *
+   * It's a good idea to organize your tests consistently using the 'group'
+   * key.
+   */
+  public static function getInfo() {
+    return array(
+      'name' => 'Menu parent item',
+      'description' => 'Ensure that the menu item edit form displays instructions on how to link a menu item to its parent item.',
+      'group' => 'Menu parent item',
+    );
+  }
+
+  /**
+   * Add custom menu.
+   */
+  function addMenuParentItemCustomMenu() {
+    // Add a new custom menu.
+    $menu_name = substr(hash('sha256', $this->randomName(16)), 0, MENU_MAX_MENU_NAME_LENGTH_UI);
+    $title = $this->randomName(16);
+
+    $menu = array(
+      'menu_name' => $menu_name,
+      'title' => $title,
+      'description' => 'Description text',
+    );
+    menu_save($menu);
+
+    $menu = menu_load($menu_name);
+
+    $this->assertTrue($menu, 'Custom menu was added.');
+
+    return $menu;
+  }
+
+  /**
+   * Set up the test environment.
+   *
+   * This method is called once per test method, before the test is executed.
+   * It gives you a chance to control the setup of the test environment.
+   *
+   * If you need a different test environment, then you should create another
+   * test class which overloads DrupalWebTestCase::setUp() differently.
+   *
+   * @see DrupalWebTestCase::setUp()
+   */
+  public function setUp() {
+
+    $original_theme_registry = theme_get_registry(FALSE);
+    $this->original_menu_link_hook = $original_theme_registry['menu_link'];
+
+    // We call parent::setUp() with the list of modules we want to enable.
+    // This can be an array or just a list of arguments.
+    parent::setUp('menu_parent_item');
+
+    // Create and log in our user. The user has the arbitrary privilege
+    // 'extra special edit any simpletest_example' which is provided by
+    // our module to grant access.
+    $this->privilegedUser = $this->drupalCreateUser(array('access administration pages', 'administer blocks', 'administer menu'));
+
+    $this->menu = $this->addMenuParentItemCustomMenu();
+    $this->menu_item = $this->addMenuLink(0, '<front>', $this->menu['menu_name'], TRUE);
+    $this->child_menu_item = $this->addMenuLink($this->menu_item['mlid'], '<parent>', $this->menu['menu_name'], TRUE);
+
+    $this->parent_menu_link = menu_link_load($this->child_menu_item['plid']);
+    $this->child_menu_link = menu_link_load($this->child_menu_item['mlid']);
+  }
+
+  function tearDown() {
+    $this->deleteCustomMenu($this->menu);
+    parent::tearDown();
+  }
+
+  /**
+   * Create a simpletest_example node using the node form.
+   */
+  public function testMenuParentItemCreate() {
+
+    $menu_name = $this->menu['menu_name'];
+    $child_menu_item_mlid = $this->child_menu_item['mlid'];
+    $form_instructions = t('Enter "%parent" to generate a link to the parent item (e.g., "Home" or "Go back" links).', array('%parent' => '<parent>'));
+
+    $this->drupalLogin($this->privilegedUser);
+
+    // View the add menu link page.
+    $this->drupalGet("admin/structure/menu/manage/$menu_name/add");
+    $this->assertResponse(200);
+
+    // Check that the add menu link page displays instructions
+    // for linking to parent menu items.
+    $this->assertText($form_instructions, 'Instructions for linking to parent menu items were found on the add menu link page.');
+
+    // View the edit menu link page.
+    $this->drupalGet("admin/structure/menu/item/$child_menu_item_mlid/edit");
+    $this->assertResponse(200);
+
+    // Check that the edit menu link page displays instructions
+    // for linking to parent menu items, and that the child menu item's path
+    // is still set to the '<parent>' special string.
+    $this->assertText($form_instructions, 'Instructions for linking to parent menu items were found on the edit menu link page.');
+    $this->assertFieldByName('link_path', '<parent>', 'Path is found with the \'<parent>\' special string.');
+
+    $this->drupalLogout();
+
+  }
+
+  public function testMenuParentItemThemeRegistryAlter() {
+    $theme_registry = theme_get_registry(FALSE);
+    $theme_registry['menu_link']['function']; menu_parent_item_menu_link
+  
+    assertEqual($theme_registry['menu_parent_item_menu_link_default'], $this->original_menu_link_hook, 'Original menu_link theme hook was correctly saved as menu_parent_item_menu_link_default');
+
+    assertEqual($theme_registry['menu_link']['function'], 'menu_parent_item_menu_link', 'Original menu_link theme hook function was correctly overriden and changed to menu_parent_item_menu_link');
+  }
+
+  public function testMenuParentItemMenuLink() {
+    $this->assertEqual($this->child_menu_link['href'], $this->parent_menu_link['href'], 'The menu link array returned for the child menu item correctly reflect\'s its parent\'s href element');
+  }
+
+ public function testMenuParentItemNavigation() {
+    // View home page.
+    $this->drupalGet('');
+    $this->assertResponse(200);
+
+    $title = $parent_menu_link['link_title'];
+    $this->assertLink($title, 0, 'Parent menu link was displayed');
+
+    // Verify parent menu link link.
+    $this->clickLink($title);
+    $this->parent_url = $this->getUrl();
+    $this->assertTitle('Drupal', 'Parent menu link link target was correct');
+
+    // Verify child menu link.
+    $title = $child_menu_link['link_title'];
+    $this->assertLink($title, 0, 'Child menu link was displayed');
+
+    // Verify child menu link link.
+    $this->clickLink($title);
+    $this->child_url = $this->getUrl();
+    $this->assertTitle('Drupal', 'Child menu link link target was correct');
+
+    // Verify the resulting URLs for the loaded parent and child links were the same.
+    $this->assertEqual($child_url, $parent_url, 'The internal browser correctly returned the same URL for both targets');
+  }
+
+  /**
+   * Detect if we're running on PIFR testbot.
+   *
+   * Skip intentional failure in that case. It happens that on the testbot the
+   * site under test is in a directory named 'checkout' or 'site_under_test'.
+   *
+   * @return bool
+   *   TRUE if running on testbot.
+   */
+  public function runningOnTestbot() {
+    // @todo: Add this line back once the testbot variable is available.
+    // https://www.drupal.org/node/2565181
+    // return env('DRUPALCI');
+    return TRUE;
+  }
+}
